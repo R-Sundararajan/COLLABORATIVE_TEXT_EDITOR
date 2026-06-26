@@ -2,11 +2,12 @@ node_modules/
 dist/
 build/
 coverage/
+PROJECT_PROGRESS.md
+design.drawio
 
 .env
 .env.local
 .env.*.local
-backend/.env.example
 
 .vscode/
 .DS_Store
