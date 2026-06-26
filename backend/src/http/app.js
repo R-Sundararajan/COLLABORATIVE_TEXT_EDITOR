@@ -4,6 +4,7 @@ const express = require("express");
 const { env } = require("../config/env");
 const { checkPostgres } = require("../config/postgres");
 const { checkRedis } = require("../config/redis");
+const { createApiGateway } = require("./apiGateway");
 
 function createApp() {
   const app = express();
@@ -20,7 +21,7 @@ function createApp() {
     res.json({
       service: "collaborative-text-editor-api",
       status: "ok",
-      phase: "project-initialization",
+      phase: "authentication-api-gateway",
     });
   });
 
@@ -44,11 +45,9 @@ function createApp() {
     });
   });
 
-  app.use("/api", (_req, res) => {
-    res.status(404).json({
-      message: "API route not implemented in the current project phase.",
-    });
-  });
+  app.use("/api", createApiGateway());
+
+  app.use(handleError);
 
   return app;
 }
@@ -78,6 +77,20 @@ async function checkDependencies() {
   );
 
   return Object.fromEntries(entries);
+}
+
+function handleError(error, _req, res, _next) {
+  const statusCode =
+    Number.isInteger(error?.statusCode) && error.statusCode >= 400
+      ? error.statusCode
+      : 500;
+
+  res.status(statusCode).json({
+    message:
+      statusCode >= 500
+        ? "Internal server error."
+        : error.message || "Request failed.",
+  });
 }
 
 module.exports = { createApp };
