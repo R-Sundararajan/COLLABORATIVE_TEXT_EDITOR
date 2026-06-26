@@ -1,32 +1,25 @@
-// server.js
+const { createServer } = require("node:http");
 
-require("dotenv").config();
+const { createApp } = require("./src/http/app");
+const { env } = require("./src/config/env");
+const { closePostgresPool } = require("./src/config/postgres");
+const { closeRedisClient } = require("./src/config/redis");
 
-const express = require("express");
-const cors = require("cors");
-const connectDB = require("./config/db");
-const authRoutes = require("./routes/auth");
-const projectRoutes = require("./routes/project");
+const app = createApp();
+const server = createServer(app);
 
-const app = express();
-
-// Connect Database
-connectDB();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use("/api/auth", authRoutes);
-app.use("/api/projects", projectRoutes);
-
-// Test Route
-app.get("/", (req, res) => {
-    res.send("Collaborative Coding Backend Running");
+server.listen(env.PORT, () => {
+  console.log(`Collaborative editor API listening on port ${env.PORT}`);
 });
 
-// Start Server
-const PORT = process.env.PORT || 5000;
+async function shutdown(signal) {
+  console.log(`${signal} received. Closing collaborative editor API.`);
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+  server.close(async () => {
+    await Promise.allSettled([closePostgresPool(), closeRedisClient()]);
+    process.exit(0);
+  });
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));

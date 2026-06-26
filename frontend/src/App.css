@@ -1,42 +1,236 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #f5f7f8;
+  color: #17212b;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  border-right: 1px solid #d8e0e6;
+  background: #ffffff;
+  padding: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #12232e;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.brand-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: #1f7a6d;
+  color: #ffffff;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
+.nav-list,
+.document-list {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-item,
+.document-item {
+  border-radius: 8px;
+  color: #394956;
+  text-decoration: none;
+}
+
+.nav-item {
+  padding: 10px 12px;
+  font-weight: 650;
+}
+
+.nav-item.active,
+.nav-item:hover {
+  background: #e7f3ef;
+  color: #14574e;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #6a7784;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.document-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dfe6eb;
+  padding: 12px;
+}
+
+.document-item.selected {
+  border-color: #1f7a6d;
+}
+
+.document-item span {
+  color: #17212b;
+  font-weight: 650;
+}
+
+.document-item small {
+  color: #7b8792;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #d8e0e6;
+  background: #ffffff;
+  padding: 20px 28px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.2;
+}
+
+.service-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 8px 10px;
+  color: #475665;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #d9822b;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  min-height: 0;
+  padding: 20px;
+}
+
+.editor-panel,
+.metadata-panel {
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.editor-panel {
+  display: grid;
+  grid-template-rows: auto minmax(360px, 1fr);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e4eaee;
+  padding: 12px 16px;
+  color: #526170;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+textarea {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  resize: none;
+  padding: 28px;
+  color: #17212b;
+  background: #fffdf9;
+  font: 1rem/1.7 ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono",
+    monospace;
+}
+
+textarea:focus {
+  outline: 3px solid #b9ded6;
+  outline-offset: -3px;
+}
+
+.metadata-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 18px;
+}
+
+.metadata-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid #e7edf1;
+  padding: 12px 0;
+  color: #5c6a76;
+}
+
+.metadata-row strong {
+  color: #17212b;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
   }
-  to {
-    transform: rotate(360deg);
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #d8e0e6;
+  }
+
+  .editor-layout {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (max-width: 620px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
-}
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  .editor-layout,
+  .sidebar {
+    padding: 16px;
+  }
 }

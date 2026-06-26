@@ -1,22 +1,30 @@
 {
-  "name": "backend",
+  "name": "collaborative-editor-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend scaffold for the collaborative text editor.",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "check": "node -e \"require('./src/http/app'); require('./src/db/migrate'); console.log('backend scaffold ok')\"",
+    "migrate": "node src/db/migrate.js"
   },
-  "keywords": [],
+  "keywords": [
+    "collaboration",
+    "editor",
+    "postgresql",
+    "redis",
+    "websocket"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.2.3"
+    "pg": "^8.13.1",
+    "redis": "^4.7.0",
+    "ws": "^8.18.0"
   }
 }
