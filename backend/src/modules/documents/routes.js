@@ -4,18 +4,26 @@ const { requireAuth } = require("../auth/middleware");
 const {
   DocumentNotFoundError,
   DocumentPermissionError,
+  DocumentShareError,
   createDocument,
+  createDocumentShareLink,
   deleteDocument,
   findDocumentForUser,
+  joinSharedDocument,
   listDocumentsForUser,
+  listDocumentMembers,
   saveDocument,
+  shareDocumentWithUser,
   updateDocument,
 } = require("./repository");
 const {
   DocumentValidationError,
   parseCreateDocumentRequest,
+  parseCreateShareLinkRequest,
   parseDocumentId,
+  parseJoinDocumentRequest,
   parseSaveDocumentRequest,
+  parseShareDocumentRequest,
   parseUpdateDocumentRequest,
 } = require("./validation");
 
@@ -43,6 +51,62 @@ function createDocumentsRouter() {
       });
 
       res.status(201).json({ document });
+    }),
+  );
+
+  router.post(
+    "/join",
+    asyncHandler(async (req, res) => {
+      const { code } = parseJoinDocumentRequest(req.body);
+      const document = await joinSharedDocument({
+        code,
+        userId: req.auth.user.id,
+      });
+
+      res.json({ document });
+    }),
+  );
+
+  router.get(
+    "/:documentId/members",
+    asyncHandler(async (req, res) => {
+      const documentId = parseDocumentId(req.params.documentId);
+      const members = await listDocumentMembers({
+        documentId,
+        userId: req.auth.user.id,
+      });
+
+      res.json({ members });
+    }),
+  );
+
+  router.post(
+    "/:documentId/share",
+    asyncHandler(async (req, res) => {
+      const documentId = parseDocumentId(req.params.documentId);
+      const input = parseShareDocumentRequest(req.body);
+      const member = await shareDocumentWithUser({
+        documentId,
+        userId: req.auth.user.id,
+        ...input,
+      });
+
+      res.json({ member });
+    }),
+  );
+
+  router.post(
+    "/:documentId/share-link",
+    asyncHandler(async (req, res) => {
+      const documentId = parseDocumentId(req.params.documentId);
+      const { role } = parseCreateShareLinkRequest(req.body);
+      const shareLink = await createDocumentShareLink({
+        documentId,
+        userId: req.auth.user.id,
+        role,
+      });
+
+      res.json({ shareLink });
     }),
   );
 
@@ -131,6 +195,12 @@ function handleDocumentError(error, _req, res, next) {
 
   if (error instanceof DocumentPermissionError) {
     return res.status(403).json({
+      message: error.message,
+    });
+  }
+
+  if (error instanceof DocumentShareError) {
+    return res.status(error.statusCode).json({
       message: error.message,
     });
   }

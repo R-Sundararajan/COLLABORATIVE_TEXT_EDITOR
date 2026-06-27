@@ -85,6 +85,56 @@ function parseSaveDocumentRequest(body) {
   return input;
 }
 
+function parseJoinDocumentRequest(body) {
+  const code =
+    typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
+
+  if (!/^[A-F0-9]{12}$/.test(code)) {
+    throw new DocumentValidationError([
+      {
+        field: "code",
+        message: "Enter a valid 12-character share code.",
+      },
+    ]);
+  }
+
+  return { code };
+}
+
+function parseShareDocumentRequest(body) {
+  const email =
+    typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const role = parseShareRole(body?.role);
+  const errors = [];
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.push({ field: "email", message: "A valid email address is required." });
+  }
+
+  if (!role) {
+    errors.push({ field: "role", message: "Role must be editor or viewer." });
+  }
+
+  throwIfInvalid(errors);
+  return { email, role };
+}
+
+function parseCreateShareLinkRequest(body) {
+  const role = parseShareRole(body?.role);
+
+  if (!role) {
+    throw new DocumentValidationError([
+      { field: "role", message: "Role must be editor or viewer." },
+    ]);
+  }
+
+  return { role };
+}
+
+function parseShareRole(value) {
+  return value === "editor" || value === "viewer" ? value : null;
+}
+
 function normalizeOptionalString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -157,7 +207,10 @@ function throwIfInvalid(errors) {
 module.exports = {
   DocumentValidationError,
   parseCreateDocumentRequest,
+  parseCreateShareLinkRequest,
   parseDocumentId,
+  parseJoinDocumentRequest,
   parseSaveDocumentRequest,
+  parseShareDocumentRequest,
   parseUpdateDocumentRequest,
 };

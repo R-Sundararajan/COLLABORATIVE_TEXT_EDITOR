@@ -1,3 +1,5 @@
+const crypto = require("node:crypto");
+
 const { pool } = require("../../config/postgres");
 
 class DocumentNotFoundError extends Error {
@@ -11,6 +13,14 @@ class DocumentPermissionError extends Error {
   constructor() {
     super("You do not have permission to modify this document.");
     this.name = "DocumentPermissionError";
+  }
+}
+
+class DocumentShareError extends Error {
+  constructor(message, statusCode = 400) {
+    super(message);
+    this.name = "DocumentShareError";
+    this.statusCode = statusCode;
   }
 }
 
@@ -246,6 +256,203 @@ async function deleteDocument({ documentId, userId }) {
   }
 }
 
+async function listDocumentMembers({ documentId, userId }) {
+  const client = await pool.connect();
+
+  try {
+    await assertDocumentRole(client, documentId, userId, OWNER_ROLES);
+    const { rows } = await client.query(
+      `
+        select
+          u.id,
+          u.email::text,
+          u.display_name,
+          dp.role,
+          dp.created_at
+        from document_permissions dp
+        inner join users u on u.id = dp.user_id
+        where dp.document_id = $1
+          and u.deleted_at is null
+        order by
+          case dp.role when 'owner' then 0 when 'editor' then 1 else 2 end,
+          u.display_name
+      `,
+      [documentId],
+    );
+
+    return rows.map((row) => ({
+      user: {
+        id: row.id,
+        email: row.email,
+        displayName: row.display_name,
+      },
+      role: row.role,
+      sharedAt: row.created_at,
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+async function shareDocumentWithUser({ documentId, userId, email, role }) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+    await assertDocumentRole(client, documentId, userId, OWNER_ROLES);
+    const { rows: users } = await client.query(
+      `
+        select id, email::text, display_name
+        from users
+        where email = $1
+          and deleted_at is null
+        limit 1
+      `,
+      [email],
+    );
+
+    if (users.length === 0) {
+      throw new DocumentShareError(
+        "No active account uses that email address.",
+        404,
+      );
+    }
+
+    const target = users[0];
+
+    if (target.id === userId) {
+      throw new DocumentShareError("You already own this document.");
+    }
+
+    await client.query(
+      `
+        insert into document_permissions (
+          document_id,
+          user_id,
+          role,
+          granted_by_user_id
+        )
+        values ($1, $2, $3, $4)
+        on conflict (document_id, user_id)
+        do update set
+          role = excluded.role,
+          granted_by_user_id = excluded.granted_by_user_id
+        where document_permissions.role <> 'owner'
+      `,
+      [documentId, target.id, role, userId],
+    );
+    await client.query("commit");
+
+    return {
+      user: {
+        id: target.id,
+        email: target.email,
+        displayName: target.display_name,
+      },
+      role,
+    };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function createDocumentShareLink({ documentId, userId, role }) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+    await assertDocumentRole(client, documentId, userId, OWNER_ROLES);
+    const code = crypto.randomBytes(6).toString("hex").toUpperCase();
+    const link = { code, role };
+
+    await client.query(
+      `
+        update documents
+        set metadata = jsonb_set(
+          coalesce(metadata, '{}'::jsonb),
+          '{shareLink}',
+          $2::jsonb,
+          true
+        )
+        where id = $1
+      `,
+      [documentId, JSON.stringify(link)],
+    );
+    await client.query("commit");
+
+    return link;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function joinSharedDocument({ code, userId }) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+    const { rows } = await client.query(
+      `
+        select
+          id,
+          owner_user_id,
+          metadata -> 'shareLink' ->> 'role' as share_role
+        from documents
+        where upper(metadata -> 'shareLink' ->> 'code') = $1
+          and archived_at is null
+        limit 1
+        for update
+      `,
+      [code],
+    );
+
+    if (rows.length === 0) {
+      throw new DocumentShareError("Share code was not found or has expired.", 404);
+    }
+
+    const sharedDocument = rows[0];
+    const role = sharedDocument.share_role === "viewer" ? "viewer" : "editor";
+
+    if (sharedDocument.owner_user_id !== userId) {
+      await client.query(
+        `
+          insert into document_permissions (
+            document_id,
+            user_id,
+            role,
+            granted_by_user_id
+          )
+          values ($1, $2, $3, $4)
+          on conflict (document_id, user_id)
+          do update set role = excluded.role
+          where document_permissions.role <> 'owner'
+        `,
+        [sharedDocument.id, userId, role, sharedDocument.owner_user_id],
+      );
+    }
+
+    const document = await selectDocumentForUser(
+      client,
+      sharedDocument.id,
+      userId,
+    );
+    await client.query("commit");
+
+    return document;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 function buildDocumentUpdate(documentId, changes) {
   const assignments = [];
   const values = [documentId];
@@ -374,13 +581,16 @@ function calculateDocumentStatistics(content) {
 }
 
 function mapDocument(row) {
+  const metadata = { ...(row.metadata || {}) };
+  delete metadata.shareLink;
+
   return {
     id: row.id,
     ownerUserId: row.owner_user_id,
     title: row.title,
     content: row.content,
     version: Number(row.version),
-    metadata: row.metadata || {},
+    metadata,
     permissionRole: row.permission_role,
     statistics: {
       characterCount: Number(row.character_count || 0),
@@ -412,11 +622,16 @@ const DOCUMENT_SELECT_COLUMNS = `
 module.exports = {
   DocumentNotFoundError,
   DocumentPermissionError,
+  DocumentShareError,
   createDocument,
+  createDocumentShareLink,
   deleteDocument,
   findDocumentForUser,
+  joinSharedDocument,
   listDocumentsForUser,
+  listDocumentMembers,
   saveDocument,
+  shareDocumentWithUser,
   updateDocument,
   writeDocumentState,
 };

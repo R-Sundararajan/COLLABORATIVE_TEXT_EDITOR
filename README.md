@@ -6,8 +6,8 @@ phase adding one complete slice of the system before moving to the next.
 
 Current completed scope covers project initialization, database design,
 authentication, document CRUD, authenticated WebSocket collaboration,
-revision-based operational transform, Redis-backed active state, and durable
-PostgreSQL synchronization.
+revision-based operational transform, Redis-backed active state, durable
+PostgreSQL synchronization, and the complete collaborative editor frontend.
 
 ## Completed Phases
 
@@ -78,6 +78,17 @@ PostgreSQL synchronization.
 - Temporary write failures retry, while inactive rooms and orderly shutdowns
   flush pending state immediately
 
+### Phase 9 - Frontend Editor
+
+- Registration, login, persisted sessions, and logout are available in the UI
+- Account settings support verified display-name, email, and password updates
+- Document creation, listing, title editing, archiving, direct invitations, and
+  share-code joining are wired to the authenticated API
+- The responsive rich-text editor joins live document rooms, provides text and
+  alignment controls, and applies revisioned local and remote operations
+- Owner/editor and viewer permissions control whether the document is editable
+- Light and dark themes persist across reloads
+
 ## API Surface
 
 The backend currently exposes:
@@ -90,9 +101,14 @@ The backend currently exposes:
 - `POST /api/auth/login` - authenticate a user and return a bearer token
 - `GET /api/auth/session` - validate the current bearer token
 - `GET /api/auth/me` - return the authenticated user
+- `PATCH /api/auth/me` - update account details after password verification
 - `GET /api/documents` - list documents available to the authenticated user
 - `POST /api/documents` - create a document
+- `POST /api/documents/join` - join a document using a share code
 - `GET /api/documents/:documentId` - read a document
+- `GET /api/documents/:documentId/members` - list document members as owner
+- `POST /api/documents/:documentId/share` - invite an account by email
+- `POST /api/documents/:documentId/share-link` - create a role-scoped share code
 - `PATCH /api/documents/:documentId` - update a document
 - `PUT /api/documents/:documentId/save` - save editor content
 - `DELETE /api/documents/:documentId` - archive a document
@@ -135,3 +151,6 @@ Backend environment variables are documented in `backend/.env.example`.
 remains cached and defaults to 24 hours.
 `DOCUMENT_PERSIST_DEBOUNCE_MS` controls edit coalescing before PostgreSQL writes,
 and `DOCUMENT_PERSIST_RETRY_MS` controls retries after temporary write failures.
+
+Run `npm run test:access` in `backend` to verify direct invitations, share-code
+joining, role enforcement, member visibility, and authenticated profile updates.

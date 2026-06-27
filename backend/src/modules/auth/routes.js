@@ -6,6 +6,8 @@ const {
   DuplicateEmailError,
   createUser,
   findUserByEmail,
+  findUserWithPasswordById,
+  updateUser,
 } = require("./repository");
 const { requireAuth } = require("./middleware");
 const { TOKEN_TYPE, signSessionToken } = require("./tokens");
@@ -13,6 +15,7 @@ const {
   ValidationError,
   parseLoginRequest,
   parseRegisterRequest,
+  parseUpdateProfileRequest,
 } = require("./validation");
 
 function createAuthRouter() {
@@ -61,6 +64,36 @@ function createAuthRouter() {
       user: req.auth.user,
     });
   });
+
+  router.patch(
+    "/me",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const input = parseUpdateProfileRequest(req.body);
+      const storedUser = await findUserWithPasswordById(req.auth.user.id);
+
+      if (
+        !storedUser ||
+        !(await verifyPassword(input.currentPassword, storedUser.passwordHash))
+      ) {
+        return res.status(401).json({
+          message: "Current password is incorrect.",
+        });
+      }
+
+      const passwordHash = input.newPassword
+        ? await hashPassword(input.newPassword)
+        : undefined;
+      const user = await updateUser({
+        userId: req.auth.user.id,
+        email: input.email,
+        displayName: input.displayName,
+        passwordHash,
+      });
+
+      return res.json({ user });
+    }),
+  );
 
   router.use(handleAuthError);
 
