@@ -4,8 +4,8 @@ A functional collaborative text editor built with React, Node.js, PostgreSQL,
 Redis, and WebSockets. The project is being implemented in phases, with each
 phase adding one complete slice of the system before moving to the next.
 
-Current completed scope covers project initialization, database design, and the
-authentication/API gateway layer.
+Current completed scope covers project initialization, database design,
+authentication, document CRUD, and authenticated WebSocket collaboration.
 
 ## Completed Phases
 
@@ -34,6 +34,19 @@ authentication/API gateway layer.
 - Centralized `/api` gateway routing added
 - Production startup now requires `JWT_SECRET`
 
+### Phase 4 - CRUD Document Service
+
+- Authenticated create, list, read, update, save, and archive routes added
+- Owner/editor write permissions enforced through PostgreSQL
+- Document content versions and text statistics maintained on writes
+
+### Phase 5 - WebSocket Collaboration
+
+- Authenticated WebSocket endpoint available at `/ws`
+- Permission-aware document rooms and participant counts added
+- Validated edit operations broadcast to other room members
+- Typed frontend collaboration client and local Vite WebSocket proxy added
+
 ## API Surface
 
 The backend currently exposes:
@@ -46,6 +59,13 @@ The backend currently exposes:
 - `POST /api/auth/login` - authenticate a user and return a bearer token
 - `GET /api/auth/session` - validate the current bearer token
 - `GET /api/auth/me` - return the authenticated user
+- `GET /api/documents` - list documents available to the authenticated user
+- `POST /api/documents` - create a document
+- `GET /api/documents/:documentId` - read a document
+- `PATCH /api/documents/:documentId` - update a document
+- `PUT /api/documents/:documentId/save` - save editor content
+- `DELETE /api/documents/:documentId` - archive a document
+- `WS /ws` - authenticate, join document rooms, and exchange live edits
 
 ## Development
 
@@ -79,4 +99,3 @@ npm run dev
 ```
 
 Backend environment variables are documented in `backend/.env.example`.
-Progress and phase status are tracked in `PROJECT_PROGRESS.md`.

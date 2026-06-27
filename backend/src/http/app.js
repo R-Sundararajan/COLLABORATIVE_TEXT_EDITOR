@@ -21,7 +21,7 @@ function createApp() {
     res.json({
       service: "collaborative-text-editor-api",
       status: "ok",
-      phase: "document-crud-service",
+      phase: "websocket-collaboration",
     });
   });
 

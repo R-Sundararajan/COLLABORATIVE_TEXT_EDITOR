@@ -12,6 +12,7 @@ function createApiGateway() {
       version: "1.0.0",
       routes: {
         auth: "/api/auth",
+        collaboration: "/ws",
         documents: "/api/documents",
         session: "/api/auth/session",
       },
