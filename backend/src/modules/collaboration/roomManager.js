@@ -1,4 +1,5 @@
 const { WebSocket } = require("ws");
+const { DocumentOperationState } = require("../operations/operationalTransform");
 
 class RoomManager {
   constructor() {
@@ -6,45 +7,53 @@ class RoomManager {
   }
 
   join(client, document) {
-    let members = this.rooms.get(document.id);
+    let room = this.rooms.get(document.id);
 
-    if (!members) {
-      members = new Map();
-      this.rooms.set(document.id, members);
+    if (!room) {
+      room = {
+        members: new Map(),
+        operationState: new DocumentOperationState({
+          content: typeof document.content === "string" ? document.content : "",
+          revision: Number.isSafeInteger(document.version) ? document.version : 0,
+        }),
+      };
+      this.rooms.set(document.id, room);
     }
 
-    const isNewMember = !members.has(client);
+    const isNewMember = !room.members.has(client);
     const membership = {
       permissionRole: document.permissionRole,
     };
 
-    members.set(client, membership);
+    room.members.set(client, membership);
     client.rooms.set(document.id, membership);
 
     return {
       isNewMember,
-      participantCount: members.size,
+      participantCount: room.members.size,
       membership,
+      content: room.operationState.content,
+      revision: room.operationState.revision,
     };
   }
 
   leave(client, documentId) {
-    const members = this.rooms.get(documentId);
+    const room = this.rooms.get(documentId);
 
-    if (!members || !members.delete(client)) {
+    if (!room || !room.members.delete(client)) {
       client.rooms.delete(documentId);
       return null;
     }
 
     client.rooms.delete(documentId);
 
-    if (members.size === 0) {
+    if (room.members.size === 0) {
       this.rooms.delete(documentId);
     }
 
     return {
       documentId,
-      participantCount: members.size,
+      participantCount: room.members.size,
     };
   }
 
@@ -58,17 +67,21 @@ class RoomManager {
     return client.rooms.get(documentId) || null;
   }
 
-  broadcast(documentId, message, { exclude } = {}) {
-    const members = this.rooms.get(documentId);
+  getOperationState(documentId) {
+    return this.rooms.get(documentId)?.operationState || null;
+  }
 
-    if (!members) {
+  broadcast(documentId, message, { exclude } = {}) {
+    const room = this.rooms.get(documentId);
+
+    if (!room) {
       return 0;
     }
 
     const serializedMessage = JSON.stringify(message);
     let recipientCount = 0;
 
-    for (const client of members.keys()) {
+    for (const client of room.members.keys()) {
       if (client === exclude || client.socket.readyState !== WebSocket.OPEN) {
         continue;
       }

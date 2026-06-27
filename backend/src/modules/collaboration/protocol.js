@@ -73,7 +73,15 @@ function parseAuthenticateMessage(message) {
 function parseEditMessage(message) {
   const documentId = parseDocumentId(message.documentId);
   const clientOperationId = parseClientOperationId(message.clientOperationId);
+  const baseRevision = message.baseRevision;
   const operation = message.operation;
+
+  if (!Number.isSafeInteger(baseRevision) || baseRevision < 0) {
+    throw new CollaborationProtocolError(
+      "INVALID_REVISION",
+      "baseRevision must be a non-negative integer.",
+    );
+  }
 
   if (!isObject(operation)) {
     throw new CollaborationProtocolError(
@@ -106,10 +114,18 @@ function parseEditMessage(message) {
     );
   }
 
+  if (operation.deleteCount === 0 && operation.insertText.length === 0) {
+    throw new CollaborationProtocolError(
+      "INVALID_OPERATION",
+      "Operation must insert or delete content.",
+    );
+  }
+
   return {
     type: "edit",
     documentId,
     clientOperationId,
+    baseRevision,
     operation: {
       index: operation.index,
       deleteCount: operation.deleteCount,

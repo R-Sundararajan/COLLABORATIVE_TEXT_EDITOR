@@ -8,6 +8,7 @@ const {
   parseClientMessage,
 } = require("./protocol");
 const { RoomManager } = require("./roomManager");
+const { OperationError } = require("../operations/operationalTransform");
 
 const AUTHENTICATION_TIMEOUT_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -218,6 +219,8 @@ async function joinDocument(client, documentId, dependencies) {
     documentId,
     permissionRole: room.membership.permissionRole,
     participantCount: room.participantCount,
+    content: room.content,
+    revision: room.revision,
   });
 
   if (room.isNewMember) {
@@ -267,21 +270,65 @@ function broadcastEdit(client, message, roomManager) {
     return;
   }
 
+  const operationState = roomManager.getOperationState(message.documentId);
+
+  if (!operationState) {
+    sendError(
+      client,
+      "NOT_IN_ROOM",
+      "Join the document before publishing edits.",
+      message.documentId,
+    );
+    return;
+  }
+
+  let result;
+
+  try {
+    result = operationState.submit({
+      userId: client.user.id,
+      clientOperationId: message.clientOperationId,
+      baseRevision: message.baseRevision,
+      operation: message.operation,
+    });
+  } catch (error) {
+    if (error instanceof OperationError) {
+      sendError(
+        client,
+        error.code,
+        error.message,
+        message.documentId,
+        error.currentRevision,
+      );
+      return;
+    }
+
+    throw error;
+  }
+
   const sentAt = new Date().toISOString();
 
   send(client, {
     type: "edit_accepted",
     documentId: message.documentId,
     clientOperationId: message.clientOperationId,
+    operation: result.operation,
+    revision: result.revision,
     sentAt,
   });
+
+  if (result.duplicate) {
+    return;
+  }
+
   roomManager.broadcast(
     message.documentId,
     {
       type: "edit",
       documentId: message.documentId,
       clientOperationId: message.clientOperationId,
-      operation: message.operation,
+      operation: result.operation,
+      revision: result.revision,
       user: publicUser(client.user),
       sentAt,
     },
@@ -321,12 +368,13 @@ function publicUser(user) {
   };
 }
 
-function sendError(client, code, message, documentId) {
+function sendError(client, code, message, documentId, currentRevision) {
   send(client, {
     type: "error",
     code,
     message,
     ...(documentId ? { documentId } : {}),
+    ...(Number.isSafeInteger(currentRevision) ? { currentRevision } : {}),
   });
 }
 

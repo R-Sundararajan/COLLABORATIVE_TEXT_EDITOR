@@ -20,6 +20,8 @@ export type CollaborationServerMessage =
       documentId: string
       permissionRole: DocumentPermissionRole
       participantCount: number
+      content: string
+      revision: number
     }
   | { type: 'document_left'; documentId: string }
   | { type: 'presence'; documentId: string; participantCount: number }
@@ -27,6 +29,8 @@ export type CollaborationServerMessage =
       type: 'edit_accepted'
       documentId: string
       clientOperationId: string
+      operation: EditOperation
+      revision: number
       sentAt: string
     }
   | {
@@ -34,6 +38,7 @@ export type CollaborationServerMessage =
       documentId: string
       clientOperationId: string
       operation: EditOperation
+      revision: number
       user: CollaborationUser
       sentAt: string
     }
@@ -42,6 +47,7 @@ export type CollaborationServerMessage =
       code: string
       message: string
       documentId?: string
+      currentRevision?: number
     }
 
 type CollaborationListener = (message: CollaborationServerMessage) => void
@@ -119,6 +125,7 @@ export class CollaborationClient {
 
   sendEdit(
     documentId: string,
+    baseRevision: number,
     operation: EditOperation,
     clientOperationId = createOperationId(),
   ): string {
@@ -126,6 +133,7 @@ export class CollaborationClient {
       type: 'edit',
       documentId,
       clientOperationId,
+      baseRevision,
       operation,
     })
 

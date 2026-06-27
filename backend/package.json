@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "check": "node -e \"require('./src/http/app'); require('./src/db/migrate'); require('./src/modules/collaboration/server'); console.log('backend scaffold ok')\"",
+    "check": "node -e \"require('./src/http/app'); require('./src/db/migrate'); require('./src/modules/collaboration/server'); require('./src/modules/operations/operationalTransform'); console.log('backend scaffold ok')\"",
     "migrate": "node src/db/migrate.js",
     "test:crud": "node src/modules/documents/crud.test.js",
-    "test:collaboration": "node src/modules/collaboration/server.test.js"
+    "test:collaboration": "node src/modules/collaboration/server.test.js",
+    "test:operations": "node src/modules/operations/operationalTransform.test.js"
   },
   "keywords": [
     "collaboration",

@@ -32,6 +32,8 @@ async function main() {
       return {
         id: documentId,
         permissionRole: rolesByUserId.get(userId),
+        content: "0123456789",
+        version: 3,
       };
     },
     logger: { error() {}, warn() {} },
@@ -61,6 +63,8 @@ async function main() {
       documentId: DOCUMENT_ID,
       permissionRole: "owner",
       participantCount: 1,
+      content: "0123456789",
+      revision: 3,
     });
 
     const ownerPresence = waitForMessage(
@@ -89,14 +93,80 @@ async function main() {
         type: "edit",
         documentId: DOCUMENT_ID,
         clientOperationId: "operation-1",
+        baseRevision: 3,
         operation,
       }),
     );
     const acceptedMessage = await editorAccepted;
     const editMessage = await ownerReceivedEdit;
     assert.equal(acceptedMessage.clientOperationId, "operation-1");
+    assert.equal(acceptedMessage.revision, 4);
     assert.deepEqual(editMessage.operation, operation);
+    assert.equal(editMessage.revision, 4);
     assert.equal(editMessage.user.id, "editor");
+
+    const editorReceivedFirstConcurrentEdit = waitForMessage(
+      editor,
+      (message) =>
+        message.type === "edit" &&
+        message.clientOperationId === "owner-concurrent",
+    );
+    const ownerConcurrentAccepted = waitForMessage(
+      owner,
+      (message) =>
+        message.type === "edit_accepted" &&
+        message.clientOperationId === "owner-concurrent",
+    );
+    owner.send(
+      JSON.stringify({
+        type: "edit",
+        documentId: DOCUMENT_ID,
+        clientOperationId: "owner-concurrent",
+        baseRevision: 4,
+        operation: { index: 0, deleteCount: 0, insertText: "A" },
+      }),
+    );
+    assert.equal((await ownerConcurrentAccepted).revision, 5);
+    await editorReceivedFirstConcurrentEdit;
+
+    const ownerReceivedTransformedEdit = waitForMessage(
+      owner,
+      (message) =>
+        message.type === "edit" &&
+        message.clientOperationId === "editor-concurrent",
+    );
+    const editorConcurrentAccepted = waitForMessage(
+      editor,
+      (message) =>
+        message.type === "edit_accepted" &&
+        message.clientOperationId === "editor-concurrent",
+    );
+    editor.send(
+      JSON.stringify({
+        type: "edit",
+        documentId: DOCUMENT_ID,
+        clientOperationId: "editor-concurrent",
+        baseRevision: 4,
+        operation: { index: 0, deleteCount: 0, insertText: "B" },
+      }),
+    );
+    const transformedAccepted = await editorConcurrentAccepted;
+    const transformedBroadcast = await ownerReceivedTransformedEdit;
+    assert.deepEqual(transformedAccepted.operation, {
+      index: 1,
+      deleteCount: 0,
+      insertText: "B",
+    });
+    assert.equal(transformedAccepted.revision, 6);
+    assert.deepEqual(
+      transformedBroadcast.operation,
+      transformedAccepted.operation,
+    );
+    assert.equal(transformedBroadcast.revision, 6);
+    assert.equal(
+      collaborationServer.roomManager.getOperationState(DOCUMENT_ID).content,
+      "AB0123shared6789",
+    );
 
     const viewerJoined = waitForMessage(
       viewer,
@@ -114,6 +184,7 @@ async function main() {
         type: "edit",
         documentId: DOCUMENT_ID,
         clientOperationId: "viewer-operation",
+        baseRevision: 6,
         operation: { index: 0, deleteCount: 0, insertText: "nope" },
       }),
     );

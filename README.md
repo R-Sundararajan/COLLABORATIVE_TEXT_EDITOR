@@ -5,7 +5,8 @@ Redis, and WebSockets. The project is being implemented in phases, with each
 phase adding one complete slice of the system before moving to the next.
 
 Current completed scope covers project initialization, database design,
-authentication, document CRUD, and authenticated WebSocket collaboration.
+authentication, document CRUD, authenticated WebSocket collaboration, and
+revision-based operational transform.
 
 ## Completed Phases
 
@@ -47,6 +48,17 @@ authentication, document CRUD, and authenticated WebSocket collaboration.
 - Validated edit operations broadcast to other room members
 - Typed frontend collaboration client and local Vite WebSocket proxy added
 
+### Phase 6 - Operational Transform
+
+- Active document rooms maintain authoritative content and revision state
+- Stale edits transform through bounded accepted-operation history
+- Same-position inserts, overlapping deletes, and replacement conflicts resolve
+  in deterministic server order
+- Duplicate operation delivery is idempotent and invalid revision/range errors
+  are explicit
+- WebSocket joins, acknowledgements, and broadcasts expose synchronized
+  revisions and transformed operations
+
 ## API Surface
 
 The backend currently exposes:
@@ -65,7 +77,8 @@ The backend currently exposes:
 - `PATCH /api/documents/:documentId` - update a document
 - `PUT /api/documents/:documentId/save` - save editor content
 - `DELETE /api/documents/:documentId` - archive a document
-- `WS /ws` - authenticate, join document rooms, and exchange live edits
+- `WS /ws` - authenticate, join document rooms, and exchange transformed,
+  revisioned live edits
 
 ## Development
 
