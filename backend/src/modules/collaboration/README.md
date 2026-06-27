@@ -30,3 +30,17 @@ changes.
 Edits based on older retained revisions are transformed through newer edits.
 Invalid ranges, future revisions, and revisions older than the bounded history
 are rejected with protocol errors that include the server's current revision.
+
+## Active document cache
+
+Redis stores active document content and revision state under versioned cache
+records with a sliding TTL. PostgreSQL is always queried first for document
+access, so cached state cannot bypass permissions. A new room uses a valid cache
+record when its revision is at least the PostgreSQL revision; otherwise it uses
+PostgreSQL state and repopulates Redis. Each accepted edit writes the resulting
+content and revision back to Redis, allowing a later room to recover the latest
+active state after the in-memory room has been released.
+
+Malformed cache records are deleted and treated as misses. If Redis is
+temporarily unavailable, collaboration continues from PostgreSQL or the current
+in-memory room and logs the cache failure.

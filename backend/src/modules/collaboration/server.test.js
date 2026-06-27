@@ -19,10 +19,25 @@ async function main() {
     ["editor", "editor"],
     ["viewer", "viewer"],
   ]);
+  const cachedStates = new Map();
+  const cacheReads = [];
+  const cacheWrites = [];
+  const activeDocumentCache = {
+    async get(documentId) {
+      cacheReads.push(documentId);
+      return cachedStates.get(documentId) || null;
+    },
+    async set(documentId, state) {
+      const cachedState = { ...state };
+      cacheWrites.push({ documentId, state: cachedState });
+      cachedStates.set(documentId, cachedState);
+    },
+  };
   const httpServer = createServer((_req, res) => {
     res.writeHead(404).end();
   });
   const collaborationServer = attachCollaborationServer(httpServer, {
+    activeDocumentCache,
     authenticateToken: async (token) => usersByToken.get(token) || null,
     loadDocumentForUser: async (documentId, userId) => {
       if (documentId !== DOCUMENT_ID) {
@@ -63,6 +78,11 @@ async function main() {
       documentId: DOCUMENT_ID,
       permissionRole: "owner",
       participantCount: 1,
+      content: "0123456789",
+      revision: 3,
+    });
+    assert.deepEqual(cacheReads, [DOCUMENT_ID]);
+    assert.deepEqual(cachedStates.get(DOCUMENT_ID), {
       content: "0123456789",
       revision: 3,
     });
@@ -210,6 +230,45 @@ async function main() {
     viewer.send(JSON.stringify({ type: "leave_document", documentId: DOCUMENT_ID }));
     await viewerLeft;
     assert.equal((await remainingPresence).participantCount, 2);
+
+    const editorLeft = waitForMessage(
+      editor,
+      (message) => message.type === "document_left",
+    );
+    const ownerOnlyPresence = waitForMessage(
+      owner,
+      (message) => message.type === "presence" && message.participantCount === 1,
+    );
+    editor.send(JSON.stringify({ type: "leave_document", documentId: DOCUMENT_ID }));
+    await editorLeft;
+    await ownerOnlyPresence;
+
+    const ownerLeft = waitForMessage(
+      owner,
+      (message) => message.type === "document_left",
+    );
+    owner.send(JSON.stringify({ type: "leave_document", documentId: DOCUMENT_ID }));
+    await ownerLeft;
+
+    const ownerRejoined = waitForMessage(
+      owner,
+      (message) => message.type === "document_joined",
+    );
+    owner.send(JSON.stringify({ type: "join_document", documentId: DOCUMENT_ID }));
+    assert.deepEqual(await ownerRejoined, {
+      type: "document_joined",
+      documentId: DOCUMENT_ID,
+      permissionRole: "owner",
+      participantCount: 1,
+      content: "AB0123shared6789",
+      revision: 6,
+    });
+    assert.deepEqual(cacheReads, [DOCUMENT_ID, DOCUMENT_ID]);
+    assert.equal(cacheWrites.length, 4);
+    assert.deepEqual(cachedStates.get(DOCUMENT_ID), {
+      content: "AB0123shared6789",
+      revision: 6,
+    });
 
     console.log("WebSocket collaboration lifecycle test passed.");
   } finally {

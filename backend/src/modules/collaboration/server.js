@@ -9,6 +9,7 @@ const {
 } = require("./protocol");
 const { RoomManager } = require("./roomManager");
 const { OperationError } = require("../operations/operationalTransform");
+const { activeDocumentCache } = require("./activeDocumentCache");
 
 const AUTHENTICATION_TIMEOUT_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -20,6 +21,7 @@ function attachCollaborationServer(httpServer, options = {}) {
   const authenticateToken = options.authenticateToken || defaultAuthenticateToken;
   const loadDocumentForUser =
     options.loadDocumentForUser || findDocumentForUser;
+  const documentCache = options.activeDocumentCache || activeDocumentCache;
   const logger = options.logger || console;
   const webSocketServer = new WebSocketServer({
     noServer: true,
@@ -68,7 +70,9 @@ function attachCollaborationServer(httpServer, options = {}) {
         .then(() =>
           handleClientMessage(client, data, isBinary, {
             authenticateToken,
+            activeDocumentCache: documentCache,
             loadDocumentForUser,
+            logger,
             roomManager,
           }),
         )
@@ -167,7 +171,7 @@ async function handleClientMessage(client, data, isBinary, dependencies) {
   }
 
   if (message.type === "edit") {
-    broadcastEdit(client, message, dependencies.roomManager);
+    await broadcastEdit(client, message, dependencies);
   }
 }
 
@@ -212,7 +216,11 @@ async function joinDocument(client, documentId, dependencies) {
     return;
   }
 
-  const room = dependencies.roomManager.join(client, document);
+  const activeDocument = await loadActiveDocumentState(
+    document,
+    dependencies,
+  );
+  const room = dependencies.roomManager.join(client, activeDocument);
 
   send(client, {
     type: "document_joined",
@@ -247,7 +255,8 @@ function leaveDocument(client, documentId, roomManager) {
   broadcastPresence(roomManager, documentId, room.participantCount);
 }
 
-function broadcastEdit(client, message, roomManager) {
+async function broadcastEdit(client, message, dependencies) {
+  const { activeDocumentCache, logger, roomManager } = dependencies;
   const membership = roomManager.getMembership(client, message.documentId);
 
   if (!membership) {
@@ -321,6 +330,16 @@ function broadcastEdit(client, message, roomManager) {
     return;
   }
 
+  await updateCachedDocumentState(
+    activeDocumentCache,
+    message.documentId,
+    {
+      content: result.content,
+      revision: result.revision,
+    },
+    logger,
+  );
+
   roomManager.broadcast(
     message.documentId,
     {
@@ -334,6 +353,54 @@ function broadcastEdit(client, message, roomManager) {
     },
     { exclude: client },
   );
+}
+
+async function loadActiveDocumentState(document, dependencies) {
+  if (dependencies.roomManager.getOperationState(document.id)) {
+    return document;
+  }
+
+  try {
+    const cachedState = await dependencies.activeDocumentCache.get(document.id);
+    const databaseRevision = normalizeRevision(document.version);
+
+    if (cachedState && cachedState.revision >= databaseRevision) {
+      return {
+        ...document,
+        content: cachedState.content,
+        version: cachedState.revision,
+      };
+    }
+
+    await dependencies.activeDocumentCache.set(document.id, {
+      content: typeof document.content === "string" ? document.content : "",
+      revision: databaseRevision,
+    });
+  } catch (error) {
+    dependencies.logger.warn?.(
+      `Active document cache unavailable for ${document.id}:`,
+      error.message,
+    );
+  }
+
+  return document;
+}
+
+async function updateCachedDocumentState(cache, documentId, state, logger) {
+  try {
+    await cache.set(documentId, state);
+  } catch (error) {
+    logger.warn?.(
+      `Unable to update active document cache for ${documentId}:`,
+      error.message,
+    );
+  }
+}
+
+function normalizeRevision(value) {
+  const revision = Number(value);
+
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;
 }
 
 function broadcastPresence(roomManager, documentId, participantCount) {

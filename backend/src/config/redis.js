@@ -3,6 +3,7 @@ const { createClient } = require("redis");
 const { env } = require("./env");
 
 let redisClient;
+let redisConnectionPromise;
 
 function getRedisClient() {
   if (!redisClient) {
@@ -18,8 +19,14 @@ function getRedisClient() {
 async function connectRedis() {
   const client = getRedisClient();
 
-  if (!client.isOpen) {
-    await client.connect();
+  if (!client.isReady) {
+    if (!redisConnectionPromise) {
+      redisConnectionPromise = client.connect().finally(() => {
+        redisConnectionPromise = undefined;
+      });
+    }
+
+    await redisConnectionPromise;
   }
 
   return client;
@@ -36,6 +43,8 @@ async function closeRedisClient() {
   if (redisClient?.isOpen) {
     await redisClient.quit();
   }
+
+  redisConnectionPromise = undefined;
 }
 
 module.exports = {

@@ -6,7 +6,7 @@ phase adding one complete slice of the system before moving to the next.
 
 Current completed scope covers project initialization, database design,
 authentication, document CRUD, authenticated WebSocket collaboration, and
-revision-based operational transform.
+revision-based operational transform with Redis-backed active document state.
 
 ## Completed Phases
 
@@ -58,6 +58,14 @@ revision-based operational transform.
   are explicit
 - WebSocket joins, acknowledgements, and broadcasts expose synchronized
   revisions and transformed operations
+
+### Phase 7 - Redis Integration
+
+- Active document content and revisions are cached in Redis with a sliding TTL
+- Room creation reads through the cache after PostgreSQL permission checks
+- Cache misses and stale entries fall back to PostgreSQL and repopulate Redis
+- Accepted edits update Redis before they are broadcast to other participants
+- Redis failures degrade to the existing in-memory room state
 
 ## API Surface
 
@@ -112,3 +120,5 @@ npm run dev
 ```
 
 Backend environment variables are documented in `backend/.env.example`.
+`ACTIVE_DOCUMENT_CACHE_TTL_SECONDS` controls how long inactive document state
+remains cached and defaults to 24 hours.

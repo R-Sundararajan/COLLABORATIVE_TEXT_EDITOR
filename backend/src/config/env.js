@@ -34,6 +34,10 @@ const env = {
     process.env.DATABASE_URL ||
     "postgres://editor:editor_password@localhost:5432/collab_editor",
   REDIS_URL: process.env.REDIS_URL || "redis://localhost:6379",
+  ACTIVE_DOCUMENT_CACHE_TTL_SECONDS: readPositiveInteger(
+    process.env.ACTIVE_DOCUMENT_CACHE_TTL_SECONDS,
+    24 * 60 * 60,
+  ),
   JWT_SECRET: readJwtSecret(process.env.JWT_SECRET, nodeEnv),
   JWT_EXPIRES_IN_SECONDS: readPositiveInteger(
     process.env.JWT_EXPIRES_IN_SECONDS,
