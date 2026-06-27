@@ -1,6 +1,7 @@
 const express = require("express");
 
 const { createAuthRouter } = require("../modules/auth/routes");
+const { createDocumentsRouter } = require("../modules/documents/routes");
 
 function createApiGateway() {
   const router = express.Router();
@@ -11,12 +12,14 @@ function createApiGateway() {
       version: "1.0.0",
       routes: {
         auth: "/api/auth",
+        documents: "/api/documents",
         session: "/api/auth/session",
       },
     });
   });
 
   router.use("/auth", createAuthRouter());
+  router.use("/documents", createDocumentsRouter());
 
   router.use((_req, res) => {
     res.status(404).json({
