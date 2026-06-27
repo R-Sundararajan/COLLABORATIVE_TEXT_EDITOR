@@ -1,3 +1,8 @@
+/**
+ * Builds the in-process `/api` routing gateway.
+ * Mounts authentication and document routers, publishes the route index,
+ * and returns a JSON 404 for unknown API paths.
+ */
 const express = require("express");
 
 const { createAuthRouter } = require("../modules/auth/routes");

@@ -1,3 +1,8 @@
+/**
+ * Provides PostgreSQL persistence and lookup functions for user accounts.
+ * Maps database rows to public user objects and translates the active-email
+ * unique constraint into a domain-specific conflict error.
+ */
 const { pool } = require("../../config/postgres");
 
 class DuplicateEmailError extends Error {
@@ -111,6 +116,7 @@ async function updateUser({ userId, email, displayName, passwordHash }) {
   }
 
   try {
+    // Only validated, known columns contribute to this dynamic assignment list.
     const { rows } = await pool.query(
       `
         update users

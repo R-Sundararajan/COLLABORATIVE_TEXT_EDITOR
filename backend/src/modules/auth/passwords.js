@@ -1,3 +1,8 @@
+/**
+ * Hashes and verifies account passwords with salted Node.js scrypt.
+ * Encodes algorithm parameters into the stored value and uses timing-safe
+ * comparison after validating the persisted hash structure.
+ */
 const crypto = require("node:crypto");
 const { promisify } = require("node:util");
 

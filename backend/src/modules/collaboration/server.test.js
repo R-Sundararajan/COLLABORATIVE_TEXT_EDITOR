@@ -1,3 +1,8 @@
+/**
+ * Exercises the WebSocket collaboration lifecycle on a real local server.
+ * Injected auth, document, cache, and persistence doubles verify rooms,
+ * presence, permissions, OT concurrency, recovery, flushing, and shutdown.
+ */
 const assert = require("node:assert/strict");
 const { createServer } = require("node:http");
 

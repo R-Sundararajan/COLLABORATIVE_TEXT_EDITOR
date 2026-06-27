@@ -1,3 +1,8 @@
+/**
+ * Exercises sharing, permission, and account-security behavior end to end.
+ * Covers email invitations, share-code joins, viewer/editor boundaries,
+ * owner-only membership, and password-confirmed profile updates.
+ */
 const assert = require("node:assert/strict");
 const { createServer } = require("node:http");
 

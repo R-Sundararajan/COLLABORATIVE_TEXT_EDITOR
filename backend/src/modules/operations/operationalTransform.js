@@ -1,3 +1,8 @@
+/**
+ * Implements revisioned string-splice operational transform for active rooms.
+ * Owns authoritative content, bounded history/idempotency, conflict
+ * transformation, range checks, and stable operation errors.
+ */
 const DEFAULT_HISTORY_LIMIT = 1_000;
 
 class OperationError extends Error {
@@ -58,6 +63,7 @@ class DocumentOperationState {
     const newerOperations = this.history.filter(
       (entry) => entry.revision > baseRevision,
     );
+    // Reverse later length deltas to validate the splice in its historical base.
     const baseContentLength = newerOperations.reduce(
       (length, entry) => length - operationLengthDelta(entry.operation),
       this.content.length,
@@ -143,6 +149,7 @@ function transformOperation(operation, against) {
     };
   }
 
+  // Opposite endpoint affinities keep replacement-boundary behavior stable.
   const start = transformPosition(operation.index, against, "right");
   const end = transformPosition(
     operation.index + operation.deleteCount,

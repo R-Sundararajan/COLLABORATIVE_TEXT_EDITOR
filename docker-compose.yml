@@ -1,3 +1,7 @@
+# Defines local PostgreSQL and Redis services for development and tests.
+# Persists both data stores in named volumes and publishes their default ports
+# with dependency-specific health checks.
+
 services:
   postgres:
     image: postgres:16-alpine

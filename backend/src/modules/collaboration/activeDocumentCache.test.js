@@ -1,3 +1,8 @@
+/**
+ * Verifies active-document Redis serialization through an in-memory fake.
+ * Covers misses, sliding TTL options, last-editor state, malformed-record
+ * eviction, explicit deletion, connection use, and state validation.
+ */
 const assert = require("node:assert/strict");
 
 const { ActiveDocumentCache } = require("./activeDocumentCache");

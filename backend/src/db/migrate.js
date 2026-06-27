@@ -1,3 +1,8 @@
+/**
+ * Discovers ordered SQL migrations and verifies their SHA-256 checksums.
+ * Applies each new migration transactionally with its schema_migrations row
+ * and exports the runner for the CLI and database-backed tests.
+ */
 const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -55,6 +60,7 @@ async function runMigrations({ logger = console } = {}) {
       const appliedByName = appliedMigrations.byName.get(migration.name);
 
       if (appliedById || appliedByName) {
+        // ID, name, and checksum are a single immutable migration identity.
         assertMigrationMatchesApplied(migration, appliedById, appliedByName);
         skippedCount += 1;
         logger?.log(`Skipping applied migration ${migration.name}`);

@@ -1,3 +1,8 @@
+/**
+ * Configures the React build and local development transport boundary.
+ * Proxies HTTP API and WebSocket paths to the backend while production URLs
+ * remain controlled by the frontend environment variables.
+ */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 

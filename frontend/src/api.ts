@@ -1,3 +1,8 @@
+/**
+ * Defines shared frontend API models and the typed HTTP request helper.
+ * Resolves the configured base URL, adds JSON/bearer headers, handles empty
+ * responses, and converts backend error bodies into ApiError instances.
+ */
 export type User = {
   id: string
   email: string

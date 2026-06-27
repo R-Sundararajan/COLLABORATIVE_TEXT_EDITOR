@@ -1,3 +1,8 @@
+/**
+ * Renders authentication, document workspace, rich editor, and account/share UI.
+ * Coordinates HTTP document state with one authenticated collaboration client,
+ * applying contiguous server revisions and resynchronizing on protocol drift.
+ */
 import {
   type FormEvent,
   useCallback,
@@ -163,6 +168,7 @@ function Workspace({
   const collaborationRef = useRef<CollaborationClient | null>(null)
   const activeDocumentIdRef = useRef<string | null>(null)
   const requestedDocumentIdRef = useRef<string | null>(null)
+  // Refs preserve protocol authority across render cycles and socket callbacks.
   const authoritativeContentRef = useRef('')
   const revisionRef = useRef(0)
   const pendingOperationIdRef = useRef<string | null>(null)
@@ -841,6 +847,7 @@ function handleCollaborationMessage(
       return
     }
 
+    // A gap cannot be repaired client-side because only the server retains OT history.
     if (message.revision !== context.revisionRef.current + 1) {
       context.resynchronize('Live changes were resynchronized.')
       return
@@ -866,6 +873,7 @@ function handleCollaborationMessage(
       context.pendingOperationIdRef.current = null
     }
 
+    // Keep optimistic UI while pending, but advance the authoritative sequence.
     const hasPendingOperation = context.pendingOperationIdRef.current !== null
     context.setEditor((current) => ({
       ...current,
@@ -1490,6 +1498,7 @@ function createEditOperation(previous: string, next: string): EditOperation | nu
     return null
   }
 
+  // Reduce an arbitrary contenteditable mutation to one replacement splice.
   let start = 0
   const sharedLength = Math.min(previous.length, next.length)
 
@@ -1598,6 +1607,7 @@ function sanitizeRichText(content: string): string {
     'UL',
   ])
 
+  // Formatting is structural; all other attributes are stripped from stored HTML.
   for (const element of Array.from(template.content.querySelectorAll('*'))) {
     if (!allowedTags.has(element.tagName)) {
       element.replaceWith(...Array.from(element.childNodes))

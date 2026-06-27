@@ -1,3 +1,8 @@
+/**
+ * Implements the application's minimal HS256 session-token format.
+ * Signs user claims, validates header/signature/expiry/subject invariants,
+ * and exposes typed token errors to HTTP and WebSocket authentication.
+ */
 const crypto = require("node:crypto");
 
 const { env } = require("../../config/env");

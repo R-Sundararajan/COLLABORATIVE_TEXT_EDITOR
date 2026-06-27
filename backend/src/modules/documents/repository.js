@@ -1,3 +1,8 @@
+/**
+ * Owns PostgreSQL queries for documents, roles, sharing, and text statistics.
+ * Coordinates multi-table transactions and exposes revision-aware full-state
+ * writes used by the realtime persistence scheduler.
+ */
 const crypto = require("node:crypto");
 
 const { pool } = require("../../config/postgres");
@@ -171,6 +176,7 @@ async function writeDocumentState({
   try {
     await client.query("begin");
 
+    // The row lock makes the stored revision comparison and write atomic.
     const { rows } = await client.query(
       `
         select content, version, archived_at
@@ -188,6 +194,7 @@ async function writeDocumentState({
     const storedRevision = Number(rows[0].version);
 
     if (storedRevision > revision) {
+      // Delayed persistence must never replace a state accepted later elsewhere.
       await client.query("commit");
       return {
         status: "stale",
@@ -582,6 +589,7 @@ function calculateDocumentStatistics(content) {
 
 function mapDocument(row) {
   const metadata = { ...(row.metadata || {}) };
+  // Share codes authorize joins and are intentionally omitted from normal DTOs.
   delete metadata.shareLink;
 
   return {

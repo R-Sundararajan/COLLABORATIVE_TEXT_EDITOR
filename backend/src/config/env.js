@@ -1,3 +1,8 @@
+/**
+ * Loads backend environment settings and applies safe numeric defaults.
+ * Enforces an explicit JWT secret in production and exports the shared
+ * configuration consumed by HTTP, auth, cache, and persistence modules.
+ */
 const dotenv = require("dotenv");
 
 dotenv.config();

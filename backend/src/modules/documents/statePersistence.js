@@ -1,3 +1,8 @@
+/**
+ * Coalesces accepted realtime document states before PostgreSQL persistence.
+ * Maintains one serial flush per document, retries failed latest state, and
+ * exposes explicit inactive-room and shutdown draining operations.
+ */
 const { env } = require("../../config/env");
 const { writeDocumentState } = require("./repository");
 
@@ -41,6 +46,7 @@ class DocumentStatePersistence {
       return;
     }
 
+    // Replacing pending state bounds rapid edits to the newest full snapshot.
     record.latestRevision = normalizedState.revision;
     record.pending = normalizedState;
 
@@ -77,6 +83,7 @@ class DocumentStatePersistence {
       }
     }
 
+    // A single in-flight drain owns the document; later states remain pending.
     record.flushPromise = this.drain(record).finally(() => {
       record.flushPromise = null;
 
@@ -166,6 +173,7 @@ class DocumentStatePersistence {
       try {
         result = await this.persist(state);
       } catch (error) {
+        // Preserve the failed snapshot unless a newer revision arrived mid-write.
         if (!record.pending || record.pending.revision <= state.revision) {
           record.pending = state;
         }

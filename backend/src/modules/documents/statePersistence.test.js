@@ -1,3 +1,8 @@
+/**
+ * Verifies the in-process document persistence coordinator in isolation.
+ * Covers latest-revision coalescing, independent documents, retry after a
+ * temporary failure, orderly shutdown flush, and closed-state rejection.
+ */
 const assert = require("node:assert/strict");
 
 const { DocumentStatePersistence } = require("./statePersistence");

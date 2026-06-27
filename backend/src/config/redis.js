@@ -1,3 +1,8 @@
+/**
+ * Creates and connects the shared Redis client lazily.
+ * Coalesces concurrent connection attempts and exposes health/shutdown
+ * helpers for the cache, HTTP health route, and server lifecycle.
+ */
 const { createClient } = require("redis");
 
 const { env } = require("./env");

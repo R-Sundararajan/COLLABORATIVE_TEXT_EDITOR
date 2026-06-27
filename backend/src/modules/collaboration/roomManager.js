@@ -1,3 +1,8 @@
+/**
+ * Maintains in-memory document rooms and per-client memberships.
+ * Creates authoritative OT state for new rooms, tracks presence, broadcasts
+ * JSON events, and removes a room when its final member leaves.
+ */
 const { WebSocket } = require("ws");
 const { DocumentOperationState } = require("../operations/operationalTransform");
 

@@ -1,3 +1,8 @@
+/**
+ * Authenticates protected HTTP requests from bearer tokens.
+ * Verifies the session token, reloads the active PostgreSQL user, and places
+ * both on req.auth for downstream document and account routes.
+ */
 const { AuthTokenError, verifySessionToken } = require("./tokens");
 const { findUserById } = require("./repository");
 

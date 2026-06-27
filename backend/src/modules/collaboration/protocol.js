@@ -1,3 +1,8 @@
+/**
+ * Parses and validates every client-to-server collaboration frame.
+ * Normalizes authenticated room and edit messages and raises stable protocol
+ * error codes before untrusted data reaches room or OT state.
+ */
 const MAX_INSERT_TEXT_LENGTH = 50_000;
 const MAX_CLIENT_OPERATION_ID_LENGTH = 128;
 const UUID_PATTERN =

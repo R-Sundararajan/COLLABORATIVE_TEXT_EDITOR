@@ -1,3 +1,8 @@
+/**
+ * Attaches the authenticated `/ws` collaboration service to an HTTP server.
+ * Orchestrates protocol routing, rooms, OT, presence, Redis active state,
+ * PostgreSQL persistence/recovery, heartbeats, and graceful shutdown.
+ */
 const { WebSocket, WebSocketServer } = require("ws");
 
 const { findUserById } = require("../auth/repository");
@@ -71,6 +76,7 @@ function attachCollaborationServer(httpServer, options = {}) {
     });
 
     socket.on("message", (data, isBinary) => {
+      // Serialize this client's async frames so joins and edits cannot overtake.
       client.messageQueue = client.messageQueue
         .then(() =>
           handleClientMessage(client, data, isBinary, {
@@ -394,6 +400,7 @@ async function loadActiveDocumentState(document, dependencies) {
         cachedState.revision > databaseRevision ||
         cachedState.content !== document.content
       ) {
+        // Redis can contain an accepted edit still waiting for its durable flush.
         try {
           await dependencies.documentStatePersistence.synchronize({
             documentId: document.id,

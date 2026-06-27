@@ -1,3 +1,8 @@
+/**
+ * Stores versioned active document snapshots in Redis with a sliding TTL.
+ * Validates schema/content/revision identity, deletes malformed records, and
+ * exposes the singleton cache used when collaboration rooms are created.
+ */
 const { env } = require("../../config/env");
 const { connectRedis } = require("../../config/redis");
 
@@ -26,6 +31,7 @@ class ActiveDocumentCache {
 
     const client = await this.connect();
     const key = cacheKey(documentId);
+    // GETEX turns each successful room rehydration read into a TTL renewal.
     const serialized = await client.getEx(key, { EX: this.ttlSeconds });
 
     if (serialized === null) {

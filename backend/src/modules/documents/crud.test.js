@@ -1,3 +1,8 @@
+/**
+ * Exercises the authenticated document lifecycle against Express/PostgreSQL.
+ * Verifies CRUD, statistics, version changes, revision-aware persistence,
+ * stale-write rejection, and soft-archive visibility through public APIs.
+ */
 const assert = require("node:assert/strict");
 const { createServer } = require("node:http");
 

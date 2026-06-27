@@ -1,3 +1,8 @@
+/**
+ * Defines registration, login, session, and account-update HTTP routes.
+ * Coordinates validation, password operations, user persistence, token
+ * issuance, bearer middleware, and auth-specific error mapping.
+ */
 const express = require("express");
 
 const { env } = require("../../config/env");

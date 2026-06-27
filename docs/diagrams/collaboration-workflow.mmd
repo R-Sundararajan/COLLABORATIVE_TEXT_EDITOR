@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant A as Client A
+  participant W as WebSocket server
+  participant P as PostgreSQL
+  participant R as Redis
+  participant O as Room + OT
+  participant B as Client B
+
+  A->>W: authenticate(token)
+  W->>P: verify active user
+  A->>W: join_document(documentId)
+  W->>P: load document and permission
+  W->>R: GETEX active state
+  W->>O: create/join room
+  W-->>A: document_joined(content, revision, role)
+  W-->>B: presence(count)
+
+  A->>W: edit(baseRevision, operationId, splice)
+  W->>O: transform, apply, increment
+  W-->>A: edit_accepted(transformed splice, revision)
+  W->>R: SET full state with TTL
+  W-->>B: edit(transformed splice, revision, user)
+  W->>P: debounced revision-aware state write

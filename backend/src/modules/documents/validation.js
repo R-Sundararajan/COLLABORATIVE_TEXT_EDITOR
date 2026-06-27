@@ -1,3 +1,8 @@
+/**
+ * Validates document IDs and CRUD, save, sharing, and join request bodies.
+ * Normalizes accepted values and returns structured field errors before any
+ * repository or permission work occurs.
+ */
 class DocumentValidationError extends Error {
   constructor(details) {
     super("Request validation failed.");

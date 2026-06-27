@@ -1,0 +1,28 @@
+graph LR
+  Browser["React browser client"]
+  API["Express API gateway /api"]
+  WS["WebSocket server /ws"]
+  Auth["Authentication module"]
+  Docs["Document module"]
+  Rooms["Room manager"]
+  OT["Operational transform state"]
+  Cache["Redis active-document cache"]
+  Persist["In-process persistence coordinator"]
+  DB[(PostgreSQL)]
+
+  Browser -->|HTTP + bearer token| API
+  API --> Auth
+  API --> Docs
+  Auth --> DB
+  Docs --> DB
+
+  Browser -->|authenticated WebSocket messages| WS
+  WS -->|authenticated WebSocket events| Browser
+  WS --> Auth
+  WS --> Docs
+  WS --> Rooms
+  Rooms --> OT
+  WS --> Cache
+  Cache --> WS
+  WS --> Persist
+  Persist --> DB

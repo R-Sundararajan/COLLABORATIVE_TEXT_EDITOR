@@ -1,3 +1,8 @@
+/**
+ * Defines the authenticated document, sharing, and membership HTTP routes.
+ * Validates transport inputs, invokes repository operations, and maps
+ * document validation/access/share errors to stable HTTP responses.
+ */
 const express = require("express");
 
 const { requireAuth } = require("../auth/middleware");

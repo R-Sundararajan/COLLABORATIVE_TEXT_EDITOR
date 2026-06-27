@@ -1,3 +1,8 @@
+/**
+ * Defines global box sizing, typography, focus behavior, and theme tokens.
+ * Light/dark custom properties are consumed by the application stylesheet
+ * and selected through the root data-theme attribute.
+ */
 * {
   box-sizing: border-box;
 }

@@ -1,3 +1,8 @@
+/**
+ * Composes the Express application, global middleware, health routes,
+ * API gateway, and final error response policy.
+ * Dependency probes delegate to the shared PostgreSQL and Redis clients.
+ */
 const cors = require("cors");
 const express = require("express");
 

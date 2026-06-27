@@ -1,3 +1,8 @@
+/**
+ * Verifies pure splice application and operational-transform state behavior.
+ * Covers insert/delete conflicts, deterministic concurrent order, duplicate
+ * delivery, operation-ID reuse, invalid ranges/revisions, and history expiry.
+ */
 const assert = require("node:assert/strict");
 
 const {

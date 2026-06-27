@@ -1,3 +1,8 @@
+/**
+ * Provides the typed browser client for the authenticated `/ws` protocol.
+ * Owns connection state, subscriptions, room commands, edit submission, and
+ * default URL/operation-ID generation for the React workspace.
+ */
 export type DocumentPermissionRole = 'owner' | 'editor' | 'viewer'
 
 export type EditOperation = {

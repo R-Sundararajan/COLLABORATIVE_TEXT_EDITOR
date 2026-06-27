@@ -1,3 +1,8 @@
+/**
+ * Boots the combined Express and WebSocket server process.
+ * Coordinates collaboration shutdown before closing the HTTP listener,
+ * PostgreSQL pool, and Redis client on termination signals.
+ */
 const { createServer } = require("node:http");
 
 const { createApp } = require("./src/http/app");

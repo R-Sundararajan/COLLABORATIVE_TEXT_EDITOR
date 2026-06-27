@@ -1,3 +1,8 @@
+/**
+ * Owns the process-wide PostgreSQL connection pool.
+ * Exposes the pool to repositories plus dependency health and graceful
+ * shutdown helpers used by the HTTP layer and server entry point.
+ */
 const { Pool } = require("pg");
 
 const { env } = require("./env");

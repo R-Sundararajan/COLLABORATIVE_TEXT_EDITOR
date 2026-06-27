@@ -1,3 +1,8 @@
+/**
+ * Normalizes and validates authentication and profile request bodies.
+ * Exposes request parsers that return trusted field shapes or a structured
+ * ValidationError consumed by the authentication router.
+ */
 class ValidationError extends Error {
   constructor(details) {
     super("Request validation failed.");
