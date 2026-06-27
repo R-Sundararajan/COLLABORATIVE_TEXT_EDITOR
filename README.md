@@ -5,8 +5,9 @@ Redis, and WebSockets. The project is being implemented in phases, with each
 phase adding one complete slice of the system before moving to the next.
 
 Current completed scope covers project initialization, database design,
-authentication, document CRUD, authenticated WebSocket collaboration, and
-revision-based operational transform with Redis-backed active document state.
+authentication, document CRUD, authenticated WebSocket collaboration,
+revision-based operational transform, Redis-backed active state, and durable
+PostgreSQL synchronization.
 
 ## Completed Phases
 
@@ -67,6 +68,16 @@ revision-based operational transform with Redis-backed active document state.
 - Accepted edits update Redis before they are broadcast to other participants
 - Redis failures degrade to the existing in-memory room state
 
+### Phase 8 - PostgreSQL Persistence
+
+- Accepted collaboration edits are coalesced into revision-aware PostgreSQL
+  state writes
+- Persistent writes update document content, version, timestamps, and text
+  statistics transactionally
+- Redis state ahead of PostgreSQL repairs the durable record when a room opens
+- Temporary write failures retry, while inactive rooms and orderly shutdowns
+  flush pending state immediately
+
 ## API Surface
 
 The backend currently exposes:
@@ -122,3 +133,5 @@ npm run dev
 Backend environment variables are documented in `backend/.env.example`.
 `ACTIVE_DOCUMENT_CACHE_TTL_SECONDS` controls how long inactive document state
 remains cached and defaults to 24 hours.
+`DOCUMENT_PERSIST_DEBOUNCE_MS` controls edit coalescing before PostgreSQL writes,
+and `DOCUMENT_PERSIST_RETRY_MS` controls retries after temporary write failures.

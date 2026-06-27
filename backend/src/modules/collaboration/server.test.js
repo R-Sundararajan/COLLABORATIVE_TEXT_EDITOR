@@ -22,6 +22,10 @@ async function main() {
   const cachedStates = new Map();
   const cacheReads = [];
   const cacheWrites = [];
+  const persistenceSchedules = [];
+  const persistenceRecoveries = [];
+  const persistenceFlushes = [];
+  let persistenceCloseCount = 0;
   const activeDocumentCache = {
     async get(documentId) {
       cacheReads.push(documentId);
@@ -33,11 +37,26 @@ async function main() {
       cachedStates.set(documentId, cachedState);
     },
   };
+  const documentStatePersistence = {
+    schedule(state) {
+      persistenceSchedules.push({ ...state });
+    },
+    async synchronize(state) {
+      persistenceRecoveries.push({ ...state });
+    },
+    async flush(documentId) {
+      persistenceFlushes.push(documentId);
+    },
+    async close() {
+      persistenceCloseCount += 1;
+    },
+  };
   const httpServer = createServer((_req, res) => {
     res.writeHead(404).end();
   });
   const collaborationServer = attachCollaborationServer(httpServer, {
     activeDocumentCache,
+    documentStatePersistence,
     authenticateToken: async (token) => usersByToken.get(token) || null,
     loadDocumentForUser: async (documentId, userId) => {
       if (documentId !== DOCUMENT_ID) {
@@ -85,6 +104,7 @@ async function main() {
     assert.deepEqual(cachedStates.get(DOCUMENT_ID), {
       content: "0123456789",
       revision: 3,
+      lastEditedByUserId: null,
     });
 
     const ownerPresence = waitForMessage(
@@ -187,6 +207,26 @@ async function main() {
       collaborationServer.roomManager.getOperationState(DOCUMENT_ID).content,
       "AB0123shared6789",
     );
+    assert.deepEqual(persistenceSchedules, [
+      {
+        documentId: DOCUMENT_ID,
+        content: "0123shared6789",
+        revision: 4,
+        lastEditedByUserId: "editor",
+      },
+      {
+        documentId: DOCUMENT_ID,
+        content: "A0123shared6789",
+        revision: 5,
+        lastEditedByUserId: "owner",
+      },
+      {
+        documentId: DOCUMENT_ID,
+        content: "AB0123shared6789",
+        revision: 6,
+        lastEditedByUserId: "editor",
+      },
+    ]);
 
     const viewerJoined = waitForMessage(
       viewer,
@@ -249,6 +289,7 @@ async function main() {
     );
     owner.send(JSON.stringify({ type: "leave_document", documentId: DOCUMENT_ID }));
     await ownerLeft;
+    assert.deepEqual(persistenceFlushes, [DOCUMENT_ID]);
 
     const ownerRejoined = waitForMessage(
       owner,
@@ -268,7 +309,16 @@ async function main() {
     assert.deepEqual(cachedStates.get(DOCUMENT_ID), {
       content: "AB0123shared6789",
       revision: 6,
+      lastEditedByUserId: "editor",
     });
+    assert.deepEqual(persistenceRecoveries, [
+      {
+        documentId: DOCUMENT_ID,
+        content: "AB0123shared6789",
+        revision: 6,
+        lastEditedByUserId: "editor",
+      },
+    ]);
 
     console.log("WebSocket collaboration lifecycle test passed.");
   } finally {
@@ -279,6 +329,8 @@ async function main() {
     await collaborationServer.close();
     await closeServer(httpServer);
   }
+
+  assert.equal(persistenceCloseCount, 1);
 }
 
 function createUser(id, displayName) {

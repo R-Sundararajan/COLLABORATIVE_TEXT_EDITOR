@@ -23,6 +23,18 @@ async function main() {
   assert.deepEqual(await cache.get(DOCUMENT_ID), {
     content: "cached draft",
     revision: 4,
+    lastEditedByUserId: null,
+  });
+
+  await cache.set(DOCUMENT_ID, {
+    content: "edited draft",
+    revision: 5,
+    lastEditedByUserId: "editor-user-id",
+  });
+  assert.deepEqual(await cache.get(DOCUMENT_ID), {
+    content: "edited draft",
+    revision: 5,
+    lastEditedByUserId: "editor-user-id",
   });
 
   redis.values.set(redis.lastKey, "not-json");
@@ -37,7 +49,7 @@ async function main() {
     cache.set(DOCUMENT_ID, { content: "invalid", revision: -1 }),
     TypeError,
   );
-  assert.equal(connectionCount, 7);
+  assert.equal(connectionCount, 9);
 
   console.log("Active document cache test passed.");
 }

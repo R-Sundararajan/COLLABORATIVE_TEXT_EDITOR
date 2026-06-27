@@ -33,8 +33,8 @@ are rejected with protocol errors that include the server's current revision.
 
 ## Active document cache
 
-Redis stores active document content and revision state under versioned cache
-records with a sliding TTL. PostgreSQL is always queried first for document
+Redis stores active document content, revision, and last-editor state under
+versioned cache records with a sliding TTL. PostgreSQL is always queried first for document
 access, so cached state cannot bypass permissions. A new room uses a valid cache
 record when its revision is at least the PostgreSQL revision; otherwise it uses
 PostgreSQL state and repopulates Redis. Each accepted edit writes the resulting
@@ -44,3 +44,18 @@ active state after the in-memory room has been released.
 Malformed cache records are deleted and treated as misses. If Redis is
 temporarily unavailable, collaboration continues from PostgreSQL or the current
 in-memory room and logs the cache failure.
+
+## PostgreSQL synchronization and recovery
+
+Each accepted edit schedules its resulting full content and revision for
+PostgreSQL persistence. Rapid edits to one document are coalesced, different
+documents flush independently, and stale writes cannot replace a newer database
+revision. Pending state is flushed as soon as a room becomes inactive and again
+during orderly server shutdown; temporary database failures remain queued for
+retry.
+
+If a new room finds Redis ahead of PostgreSQL, the cached state is used to
+recover the database before the room begins. An equal-revision content mismatch
+is also repaired from the active cache, matching the cache-authority rule used
+when the room is created. If recovery is temporarily unavailable, the room can
+continue from Redis while the queued persistence retry remains pending.

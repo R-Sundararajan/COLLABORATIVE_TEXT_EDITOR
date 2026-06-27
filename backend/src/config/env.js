@@ -38,6 +38,14 @@ const env = {
     process.env.ACTIVE_DOCUMENT_CACHE_TTL_SECONDS,
     24 * 60 * 60,
   ),
+  DOCUMENT_PERSIST_DEBOUNCE_MS: readPositiveInteger(
+    process.env.DOCUMENT_PERSIST_DEBOUNCE_MS,
+    1_000,
+  ),
+  DOCUMENT_PERSIST_RETRY_MS: readPositiveInteger(
+    process.env.DOCUMENT_PERSIST_RETRY_MS,
+    5_000,
+  ),
   JWT_SECRET: readJwtSecret(process.env.JWT_SECRET, nodeEnv),
   JWT_EXPIRES_IN_SECONDS: readPositiveInteger(
     process.env.JWT_EXPIRES_IN_SECONDS,

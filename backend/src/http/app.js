@@ -21,7 +21,7 @@ function createApp() {
     res.json({
       service: "collaborative-text-editor-api",
       status: "ok",
-      phase: "redis-active-document-cache",
+      phase: "postgresql-document-persistence",
     });
   });
 

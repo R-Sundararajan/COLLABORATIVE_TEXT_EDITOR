@@ -20,5 +20,7 @@ must rejoin to obtain the current content and revision. Reusing an accepted
 `clientOperationId` returns the original acknowledgement without applying the
 edit twice; reusing it for different content is rejected.
 
-The state is intentionally scoped to an active room. Redis caching and durable
-database synchronization are handled by later project phases.
+The transformation history is intentionally scoped to an active room. Current
+content and revision state are cached in Redis and coalesced into durable
+PostgreSQL writes, so recovery does not depend on retaining the in-memory
+operation history.

@@ -47,13 +47,16 @@ class RoomManager {
 
     client.rooms.delete(documentId);
 
-    if (room.members.size === 0) {
+    const becameInactive = room.members.size === 0;
+
+    if (becameInactive) {
       this.rooms.delete(documentId);
     }
 
     return {
       documentId,
       participantCount: room.members.size,
+      becameInactive,
     };
   }
 

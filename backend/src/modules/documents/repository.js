@@ -150,6 +150,77 @@ async function saveDocument({ documentId, userId, content }) {
   });
 }
 
+async function writeDocumentState({
+  documentId,
+  content,
+  revision,
+  lastEditedByUserId = null,
+}) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+
+    const { rows } = await client.query(
+      `
+        select content, version, archived_at
+        from documents
+        where id = $1
+        for update
+      `,
+      [documentId],
+    );
+
+    if (rows.length === 0 || rows[0].archived_at) {
+      throw new DocumentNotFoundError(documentId);
+    }
+
+    const storedRevision = Number(rows[0].version);
+
+    if (storedRevision > revision) {
+      await client.query("commit");
+      return {
+        status: "stale",
+        revision: storedRevision,
+      };
+    }
+
+    if (storedRevision === revision && rows[0].content === content) {
+      await client.query("commit");
+      return {
+        status: "unchanged",
+        revision: storedRevision,
+      };
+    }
+
+    await client.query(
+      `
+        update documents
+        set content = $2,
+            version = $3
+        where id = $1
+      `,
+      [documentId, content, revision],
+    );
+    await upsertDocumentStatistics(client, {
+      documentId,
+      userId: lastEditedByUserId,
+      content,
+    });
+    await client.query("commit");
+
+    return {
+      status: "updated",
+      revision,
+    };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function deleteDocument({ documentId, userId }) {
   const client = await pool.connect();
 
@@ -347,4 +418,5 @@ module.exports = {
   listDocumentsForUser,
   saveDocument,
   updateDocument,
+  writeDocumentState,
 };

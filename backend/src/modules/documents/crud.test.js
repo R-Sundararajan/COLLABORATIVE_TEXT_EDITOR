@@ -4,6 +4,7 @@ const { createServer } = require("node:http");
 const { closePostgresPool, pool } = require("../../config/postgres");
 const { createApp } = require("../../http/app");
 const { runMigrations } = require("../../db/migrate");
+const { writeDocumentState } = require("./repository");
 
 async function main() {
   const logger = { log() {} };
@@ -101,6 +102,44 @@ async function main() {
     assert.equal(saveResponse.body.document.content, "Saved editor content with more words");
     assert.equal(saveResponse.body.document.version, initialVersion + 2);
     assert.equal(saveResponse.body.document.statistics.wordCount, 6);
+
+    const persistedRevision = initialVersion + 5;
+    const persistenceResult = await writeDocumentState({
+      documentId,
+      content: "Recovered collaborative content",
+      revision: persistedRevision,
+      lastEditedByUserId: userId,
+    });
+    assert.deepEqual(persistenceResult, {
+      status: "updated",
+      revision: persistedRevision,
+    });
+
+    const stalePersistenceResult = await writeDocumentState({
+      documentId,
+      content: "stale collaborative content",
+      revision: persistedRevision - 1,
+      lastEditedByUserId: userId,
+    });
+    assert.deepEqual(stalePersistenceResult, {
+      status: "stale",
+      revision: persistedRevision,
+    });
+
+    const persistedReadResponse = await request(
+      baseUrl,
+      "GET",
+      `/api/documents/${documentId}`,
+      null,
+      headers,
+    );
+    assert.equal(persistedReadResponse.status, 200);
+    assert.equal(
+      persistedReadResponse.body.document.content,
+      "Recovered collaborative content",
+    );
+    assert.equal(persistedReadResponse.body.document.version, persistedRevision);
+    assert.equal(persistedReadResponse.body.document.statistics.wordCount, 3);
 
     const deleteResponse = await request(
       baseUrl,

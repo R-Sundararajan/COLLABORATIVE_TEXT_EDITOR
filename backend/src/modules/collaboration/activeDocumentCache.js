@@ -1,7 +1,7 @@
 const { env } = require("../../config/env");
 const { connectRedis } = require("../../config/redis");
 
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 2;
 const CACHE_KEY_PREFIX = "collab:active-document:";
 
 class ActiveDocumentCache {
@@ -52,6 +52,7 @@ class ActiveDocumentCache {
       documentId,
       content: state.content,
       revision: state.revision,
+      lastEditedByUserId: state.lastEditedByUserId || null,
       cachedAt: new Date().toISOString(),
     };
 
@@ -62,6 +63,7 @@ class ActiveDocumentCache {
     return {
       content: cachedState.content,
       revision: cachedState.revision,
+      lastEditedByUserId: cachedState.lastEditedByUserId,
     };
   }
 
@@ -92,7 +94,11 @@ function parseCachedState(serialized, documentId) {
     value.documentId !== documentId ||
     typeof value.content !== "string" ||
     !Number.isSafeInteger(value.revision) ||
-    value.revision < 0
+    value.revision < 0 ||
+    !(
+      value.lastEditedByUserId === null ||
+      typeof value.lastEditedByUserId === "string"
+    )
   ) {
     return null;
   }
@@ -100,6 +106,7 @@ function parseCachedState(serialized, documentId) {
   return {
     content: value.content,
     revision: value.revision,
+    lastEditedByUserId: value.lastEditedByUserId,
   };
 }
 
@@ -114,7 +121,12 @@ function assertDocumentState(state) {
     !state ||
     typeof state.content !== "string" ||
     !Number.isSafeInteger(state.revision) ||
-    state.revision < 0
+    state.revision < 0 ||
+    !(
+      typeof state.lastEditedByUserId === "undefined" ||
+      state.lastEditedByUserId === null ||
+      typeof state.lastEditedByUserId === "string"
+    )
   ) {
     throw new TypeError(
       "Cached document state requires string content and a non-negative revision.",
