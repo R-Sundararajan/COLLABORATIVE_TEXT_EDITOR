@@ -175,6 +175,7 @@ function Workspace({
   const richEditorRef = useRef<HTMLDivElement | null>(null)
   const suppressRichInputRef = useRef(false)
   const savedSelectionRef = useRef<Range | null>(null)
+  const draftContentRef = useRef('')
 
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) || null,
@@ -262,6 +263,7 @@ function Workspace({
         activeDocumentIdRef,
         requestedDocumentIdRef,
         authoritativeContentRef,
+        draftContentRef,
         revisionRef,
         pendingOperationIdRef,
         setDocuments,
@@ -309,6 +311,7 @@ function Workspace({
       requestedDocumentIdRef.current = null
       pendingOperationIdRef.current = null
       authoritativeContentRef.current = ''
+      draftContentRef.current = ''
       revisionRef.current = 0
       setEditor(EMPTY_EDITOR)
       return
@@ -437,18 +440,28 @@ function Workspace({
 
   const editContent = (nextContent: string) => {
     const client = collaborationRef.current
+    draftContentRef.current = nextContent
 
     if (
       !client ||
       !selectedDocumentId ||
       !editor.joined ||
-      editor.pending ||
       !canEdit
     ) {
       return
     }
 
-    const operation = createEditOperation(editor.content, nextContent)
+    if (pendingOperationIdRef.current) {
+      setEditor((current) => ({
+        ...current,
+        content: nextContent,
+        pending: true,
+        error: null,
+      }))
+      return
+    }
+
+    const operation = createEditOperation(authoritativeContentRef.current, nextContent)
 
     if (!operation) {
       return
@@ -690,8 +703,8 @@ function Workspace({
                     role="textbox"
                     aria-label="Document body"
                     aria-multiline="true"
-                    aria-readonly={!editor.joined || !canEdit || editor.pending}
-                    contentEditable={editor.joined && canEdit && !editor.pending}
+                    aria-readonly={!editor.joined || !canEdit}
+                    contentEditable={editor.joined && canEdit}
                     data-placeholder="Start writing something worth sharing…"
                     spellCheck
                     suppressContentEditableWarning
@@ -788,6 +801,7 @@ type CollaborationContext = {
   activeDocumentIdRef: React.MutableRefObject<string | null>
   requestedDocumentIdRef: React.MutableRefObject<string | null>
   authoritativeContentRef: React.MutableRefObject<string>
+  draftContentRef: React.MutableRefObject<string>
   revisionRef: React.MutableRefObject<number>
   pendingOperationIdRef: React.MutableRefObject<string | null>
   setDocuments: React.Dispatch<React.SetStateAction<DocumentRecord[]>>
@@ -809,6 +823,7 @@ function handleCollaborationMessage(
 
     context.requestedDocumentIdRef.current = message.documentId
     context.authoritativeContentRef.current = message.content
+    context.draftContentRef.current = message.content
     context.revisionRef.current = message.revision
     context.pendingOperationIdRef.current = null
     context.setEditor({
@@ -873,16 +888,13 @@ function handleCollaborationMessage(
       context.pendingOperationIdRef.current = null
     }
 
-    // Keep optimistic UI while pending, but advance the authoritative sequence.
-    const hasPendingOperation = context.pendingOperationIdRef.current !== null
+    const queuedEdit = prepareQueuedEdit(message, documentId, context)
     context.setEditor((current) => ({
       ...current,
-      content: hasPendingOperation
-        ? current.content
-        : context.authoritativeContentRef.current,
+      content: queuedEdit.content,
       revision: message.revision,
-      pending: hasPendingOperation,
-      error: null,
+      pending: queuedEdit.pending,
+      error: queuedEdit.error,
     }))
     context.setDocuments((current) =>
       current.map((document) =>
@@ -911,12 +923,90 @@ function handleCollaborationMessage(
       context.resynchronize(message.message)
     } else {
       context.pendingOperationIdRef.current = null
+      context.draftContentRef.current = context.authoritativeContentRef.current
       context.setEditor((current) => ({
         ...current,
         content: context.authoritativeContentRef.current,
         pending: false,
         error: message.message,
       }))
+    }
+  }
+}
+
+type QueuedEditState = {
+  content: string
+  pending: boolean
+  error: string | null
+}
+
+function prepareQueuedEdit(
+  message: Extract<CollaborationServerMessage, { type: 'edit' | 'edit_accepted' }>,
+  documentId: string,
+  context: CollaborationContext,
+): QueuedEditState {
+  if (context.pendingOperationIdRef.current) {
+    return {
+      content: context.draftContentRef.current,
+      pending: true,
+      error: null,
+    }
+  }
+
+  if (message.type !== 'edit_accepted') {
+    context.draftContentRef.current = context.authoritativeContentRef.current
+
+    return {
+      content: context.authoritativeContentRef.current,
+      pending: false,
+      error: null,
+    }
+  }
+
+  const queuedContent = context.draftContentRef.current
+
+  if (queuedContent === context.authoritativeContentRef.current) {
+    return {
+      content: context.authoritativeContentRef.current,
+      pending: false,
+      error: null,
+    }
+  }
+
+  const queuedOperation = createEditOperation(
+    context.authoritativeContentRef.current,
+    queuedContent,
+  )
+
+  if (!queuedOperation) {
+    context.draftContentRef.current = context.authoritativeContentRef.current
+
+    return {
+      content: context.authoritativeContentRef.current,
+      pending: false,
+      error: null,
+    }
+  }
+
+  try {
+    context.pendingOperationIdRef.current = context.client.sendEdit(
+      documentId,
+      context.revisionRef.current,
+      queuedOperation,
+    )
+
+    return {
+      content: queuedContent,
+      pending: true,
+      error: null,
+    }
+  } catch (error) {
+    context.draftContentRef.current = context.authoritativeContentRef.current
+
+    return {
+      content: context.authoritativeContentRef.current,
+      pending: false,
+      error: errorMessage(error),
     }
   }
 }

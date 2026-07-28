@@ -12,3 +12,6 @@ design.drawio
 .vscode/
 .DS_Store
 *.log
+Postgre_relations_dump.txt
+run.txt
+.idea/
